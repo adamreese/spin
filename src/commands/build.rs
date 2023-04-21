@@ -20,6 +20,10 @@ pub struct BuildCommand {
     )]
     pub app: Option<PathBuf>,
 
+    /// Component ID of a component to build.
+    #[clap(name = "component_id", long = "component-id")]
+    pub component_id: Option<String>,
+
     /// Run the application after building.
     #[clap(name = BUILD_UP_OPT, short = 'u', long = "up")]
     pub up: bool,
@@ -34,7 +38,7 @@ impl BuildCommand {
             .app
             .as_deref()
             .unwrap_or_else(|| DEFAULT_MANIFEST_FILE.as_ref());
-        spin_build::build(manifest_file).await?;
+        spin_build::build(manifest_file, self.component_id).await?;
 
         if self.up {
             let mut cmd = UpCommand::parse_from(

@@ -12,22 +12,37 @@ use subprocess::{Exec, Redirection};
 use crate::manifest::{BuildAppInfoAnyVersion, RawComponentManifest};
 
 /// If present, run the build command of each component.
-pub async fn build(manifest_file: &Path) -> Result<()> {
+pub async fn build(manifest_file: &Path, component_id: Option<String>) -> Result<()> {
     let manifest_text = tokio::fs::read_to_string(manifest_file)
         .await
         .with_context(|| format!("Cannot read manifest file from {}", manifest_file.display()))?;
     let app = toml::from_str(&manifest_text).map(BuildAppInfoAnyVersion::into_v1)?;
     let app_dir = parent_dir(manifest_file)?;
 
-    if app.components.iter().all(|c| c.build.is_none()) {
-        println!("No build command found!");
-        return Ok(());
-    }
+    match component_id {
+        Some(id) => {
+            match app.components.into_iter().find(|c| c.id == id) {
+                Some(component) => {
+                    build_component(component, &app_dir)?;
+                }
+                None => {
+                    println!("No build command found!");
+                    return Ok(());
+                }
+            }
+        }
+        None => {
+            if app.components.iter().all(|c| c.build.is_none()) {
+                println!("No build command found!");
+                return Ok(());
+            }
 
-    app.components
-        .into_iter()
-        .map(|c| build_component(c, &app_dir))
-        .collect::<Result<Vec<_>, _>>()?;
+            app.components
+                .into_iter()
+                .map(|c| build_component(c, &app_dir))
+                .collect::<Result<Vec<_>, _>>()?;
+        }
+    };
 
     println!("Successfully ran the build command for the Spin components.");
     Ok(())
